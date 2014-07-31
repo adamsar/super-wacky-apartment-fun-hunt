@@ -9,9 +9,7 @@ var nconf = require('nconf'),
     Station = require('../models/station'),
     _ = require('underscore');
 
-nconf.file({ file: '../../config.json' })
-
-
+nconf.env().argv().file({ file: './config.json' });
 //Set default adapter on models
 //model.config.defaultAdapter(nconf.get('database'), {
 //  host: nconf.get('databaseHost')
@@ -29,8 +27,9 @@ var isTruthy = function (value) { return !_.isEmpty(value) },
              .value();
     }
 
-var lineData = buildMatrix('resource/lines.csv'),
-    trainData = buildMatrix('resource/trains.csv'),
+var path = nconf.get('PWD'),
+    lineData = buildMatrix(path + '/' + nconf.get("lineFilePath")),
+    trainData = buildMatrix(path + '/' + nconf.get("trainFilePath")),
     lineMap = {};
 
 //Get mapping of lineId: lineName
@@ -59,6 +58,5 @@ trainData.forEach(function (info) {
         lon: lon,
         lat: lat
       });
-    console.info(station.toString());
   }
 });

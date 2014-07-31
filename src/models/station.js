@@ -4,17 +4,15 @@ var model = require('model'),
     validators = require('../data_util/model_validators');
 
 var Station = function () {
-
+  var self = this;
   //"Japanese string" that includes kanji and kana
-  this.property('name', 'object', { required: true });
-  this.property('line', 'object', { required: true });
+  ['name', 'line', 'address'].forEach(function (property) {
+    self.property(property, 'object', { required: true });
+    validators.validateJapaneseString(self, property);
+  });
 
   this.property('lat', 'number', { required: true });
   this.property('lon', 'number', { required: true });
-  this.property('address', 'string', { required: true });
-
-  validators.validateJapaneseString(this, 'name');
-  validators.validateJapaneseString(this, 'line');
 }
 
 Station.prototype.toString = function () {
