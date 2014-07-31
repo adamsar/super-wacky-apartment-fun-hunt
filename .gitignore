@@ -18,3 +18,4 @@ public/tests/bower*
 node_modules
 config.json
 app/bower_components
+*.db

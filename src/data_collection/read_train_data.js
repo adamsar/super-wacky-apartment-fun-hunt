@@ -9,7 +9,10 @@ var nconf = require('nconf'),
     Station = require('../models/station'),
     _ = require('underscore');
 
-nconf.env().argv().file({ file: './config.json' });
+nconf.env()
+     .argv()
+     .file({ file: './config.json' });
+
 //Set default adapter on models
 //model.config.defaultAdapter(nconf.get('database'), {
 //  host: nconf.get('databaseHost')
@@ -58,5 +61,6 @@ trainData.forEach(function (info) {
         lon: lon,
         lat: lat
       });
+    station.save();
   }
 });

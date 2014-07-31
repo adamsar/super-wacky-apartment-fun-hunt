@@ -1,3 +1,4 @@
+
 //Train station modeling data
 
 var model = require('model'),
@@ -5,6 +6,7 @@ var model = require('model'),
 
 var Station = function () {
   var self = this;
+  this.setAdapter('sqlite');
   //"Japanese string" that includes kanji and kana
   ['name', 'line', 'address'].forEach(function (property) {
     self.property(property, 'object', { required: true });
