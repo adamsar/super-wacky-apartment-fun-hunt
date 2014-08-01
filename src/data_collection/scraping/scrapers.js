@@ -32,12 +32,17 @@ var GaijinPotScraper = function (url) {
 GaijinPotScraper.prototype = _.extend(GaijinPotScraper.prototype, {
 
   doScrape: function () {
-    var scraped = {},
+    var self = this,
+        scraped = {},
         title = null,
         address = null,
         rent = null,
         keyMoney = null,
-        deposit = null;
+        deposit = null,
+        size = null,
+        layout = null,
+        description = null,
+        stations = null;
 
     //title
     title = this.$(".property_name").text();
@@ -87,13 +92,47 @@ GaijinPotScraper.prototype = _.extend(GaijinPotScraper.prototype, {
     }
 
     //size
+    size = this.$("#details_info > div:nth-child(4) > div:nth-child(1) > span.value").text();
+    if (size) {
+      size = extractors.size(size)[0];
+    }
+    if (!size) {
+      this.deferred.reject("Couldn't process size");
+      return;
+    }
+
     //layout
+    layout = this.$("#property_content_left > section:nth-child(2) > dl > div:nth-child(2) > dd").text();
+    if (layout) {
+      layout = layout.trim();
+    }
+    if (!layout) {
+      this.deferred.reject("Unable to find layout");
+      return;
+    }
+
+    //description
+    description = this.$("#property_content_left > section:nth-child(4) > p").text()
+    if (!description) {
+      this.deferred.reject("unable to find description");
+      return;
+    }
+
+    //stations
+    stations = [];
+    this.$("#property_content_left > section > a").each( function (index, elem) {
+      stations.push(self.$(elem).text());
+    });
 
     this.deferred.resolve({
       rent: rent,
       title: title,
       keyMoney: keyMoney,
-      deposit: deposit
+      deposit: deposit,
+      size: size,
+      layout: layout,
+      description: description,
+      stations: stations
     });
   }
 
