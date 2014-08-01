@@ -1,12 +1,11 @@
-
 //Train station modeling data
 
 var model = require('model'),
-    validators = require('../data_util/model_validators');
+    validators = require('../data_util/model_validators'),
+    geolocation = require('../data_util/geolocation');
 
 var Station = function () {
   var self = this;
-  this.setAdapter('sqlite');
   //"Japanese string" that includes kanji and kana
   ['name', 'line', 'address'].forEach(function (property) {
     self.property(property, 'object', { required: true });
@@ -20,6 +19,19 @@ var Station = function () {
 Station.prototype.toString = function () {
   return "Station(" + this.name.kanji + ", " + this.line.kanji + ", [" + this.lon + ", " + this.lat + "], " +
     this.address.kanji + ")";
+}
+
+//Return latitude and longitude as an object for that station
+Station.prototype.latLon = function () {
+  return {
+    lat: this.lat,
+    lon: this.lon
+  };
+}
+
+//Return distance to the other specified station
+Station.prototype.distanceTo = function (otherStation) {
+  return geolocation.distanceBetween(this.latLon(), otherStation.latLon());
 }
 
 
