@@ -7,13 +7,18 @@ var model = require('model'),
 var Station = function () {
   var self = this;
   //"Japanese string" that includes kanji and kana
-  ['name', 'line', 'address'].forEach(function (property) {
-    self.property(property, 'object', { required: true });
-    validators.validateJapaneseString(self, property);
+  this.defineProperties({
+    name: { type: 'object', required: true },
+    address: { type: 'object', required: true },
+    line: { type: 'object', required: true },
+    lat: { type: 'number', required: true },
+    lon: { type: 'number', required: true }
   });
+  this.setAdapter('sqlite');
 
-  this.property('lat', 'number', { required: true });
-  this.property('lon', 'number', { required: true });
+//  ['name', 'line', 'address'].forEach(function (property) {
+//    validators.validateJapaneseString(self, property);
+//  });
 }
 
 Station.prototype.toString = function () {
