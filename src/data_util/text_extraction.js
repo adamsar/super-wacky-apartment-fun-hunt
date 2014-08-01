@@ -1,9 +1,10 @@
 /**
  * Text extraction utils
  */
-var moneyReg = /(^| |￥|¥)\d+(,\d{3})*(\.\d*)?( |$)/,
-    monthReg = /(^| )\d+(\.\d+)?( )?(mnth(s?)|month(s?)|mth(s?))( |$)/,
-    numericReg = /\d+(\.\d)?/;
+var moneyReg = /(^|\w|￥|¥|\n)\d+(,\d+)*(\.\d*)?(\w|$|\n)/,
+    monthReg = /(^|\s|\n)\d+(\.\d+)?( )?(mnth(s?)|month(s?)|mth(s?))(\s|$|\n)/,
+    numericReg = /\d+(\.\d)?/,
+    sizeReg = /(^|\s|\n)\d+(\.\d+)? (m²|m)(\s|$|\n)/;
 
 var findAll = function (text, reg) {
   var returns = [],
@@ -51,6 +52,12 @@ var extractors = {
     //Anything that could be construed as a mention to money
     moneyMentions: function (text) {
       return findAll(text, moneyReg).map(moneyToInt);
+    },
+
+    size: function (text) {
+      return findAll(text, sizeReg).map(function (entry) {
+               return parseFloat(entry.replace(/m|m²/g, '').trim());
+             });
     }
 
 };
