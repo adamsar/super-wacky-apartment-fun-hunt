@@ -15,10 +15,11 @@ var GaijinPotScraper = function (url) {
 
   request(url, function (error, response, body) {
     if (error) {
-      console.error(error);
+//      console.error(error);
       q.reject(error);
     } else if (response.statusCode !== 200) {
-      console.error(response);
+//      console.error(response);
+      console.info(response.statusCode);
       q.reject(response);
     } else {
       self.$ = cheerio.load(body, {
@@ -42,6 +43,8 @@ GaijinPotScraper.prototype = _.extend(GaijinPotScraper.prototype, {
         size = null,
         layout = null,
         description = null,
+        yearBuilt = null,
+        maintenanceFee = null,
         stations = null;
 
     //title
@@ -50,8 +53,6 @@ GaijinPotScraper.prototype = _.extend(GaijinPotScraper.prototype, {
       this.deferred.reject("Could not parse name");
       return;
     }
-
-    //address
 
     //rent
     rent = this.$(".price").text();
@@ -132,17 +133,23 @@ GaijinPotScraper.prototype = _.extend(GaijinPotScraper.prototype, {
       size: size,
       layout: layout,
       description: description,
+      maintenance: maintenanceFee,
+      yearBuilt: yearBuilt,
       stations: stations
     });
   }
 
 });
 
-new GaijinPotScraper("http://apartments.gaijinpot.com/en/rent/view/256078").promise
-.then(
-  function (data) {
-    console.info(data);
-  },
-  function (error) {
-    console.error(error);
-  });
+for (var i = 156079; i < 257079; i++) {
+  new GaijinPotScraper("http://apartments.gaijinpot.com/en/rent/view/" + i).promise
+  .then(
+    function (data) {
+      if (data.rent < 120000 && data.size >= 40.0) {
+        console.info(data);
+      }
+    },
+    function (error) {
+//      console.error(error);
+    });
+}

@@ -19,6 +19,7 @@ var Edifice = function () {
   this.property('rooms', 'number', { required: true });
   this.property('url', 'string', { required: true });
   this.property('description', 'string', { required: true });
+  this.property('yearBuilt', 'number', { required: false });
 
   validators.validateJapaneseString(this, 'address');
   this.validatesFormat('type', validators.roomType);
@@ -28,6 +29,7 @@ var Edifice = function () {
   ['rent', 'keyMoney', 'deposit', 'maintenanceFee'].forEach(function (property) {
     validators.naturalNumber(self, property);
   });
+  validators.isYear(this, 'yearBuilt');
   validators.validateFormat('url', validators.urlRegex);
 }
 

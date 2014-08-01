@@ -7,7 +7,7 @@ var _ = require('underscore');
 
 var romanjiRegex = /^[\x00-\x7F]*$/,
     kanjiRegex = /^[\x3400-\x4DB5\|x4E00-\x9FCB\xF900-\xFA6A]*$/,
-    kanaRegex = /^[\x30A0-\x30FF]*$/
+    kanaRegex = /^[\x30A0-\x30FF]*$/;
 
 var roomTypes = /^\d(Ss|Ll|Dd|Kk)+$/,
     urlRegex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/;
@@ -50,7 +50,21 @@ var validators = {
            });
   },
 
-  naturalNumber: contextSensative(function (value) { return value >= 0; })
+  naturalNumber: contextSensative(function (value) { return value >= 0; }),
+
+  isYear: contextSensative(function (value) {
+            //Checks if it's a year.
+            var numberDigits = 1,
+                remainder = value;
+            if (_.isNumber(value)) {
+              do {
+                remainder = remainder / 10;
+                numberDigits++;
+              } while (remainder < 10)
+              return remainder < 3 && numberDigits == 4;
+            }
+            return false;
+          })
 };
 
 
