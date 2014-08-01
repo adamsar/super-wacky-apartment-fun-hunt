@@ -8,4 +8,4 @@ var chai = require('chai'),
 
 describe('The station model', function () {
 
-}):
+});
