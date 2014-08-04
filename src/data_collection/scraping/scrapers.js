@@ -5,7 +5,9 @@ var request = require('request'),
     cheerio = require('cheerio'),
     q = require('q'),
     _ = require('underscore'),
-    extractors = require('../../data_util/text_extraction');
+    extractors = require('../../data_util/text_extraction'),
+    maybe = require('../../functional/maybe'),
+    fns = require('../../functional/fns');
 
 /**
  * Add in type to an Error object for use in error handling (switch).
@@ -32,190 +34,184 @@ var InsufficientInfoError = function (requiredField, url) {
   this.url = url;
 }
 
+var IncorrectDomainError = function (domain) {
+  this.domain = domain;
+}
+
 makeScrapeError(ConnectionError, "connectionError");
 makeScrapeError(InsufficientInfoError, "insufficientInfo");
+makeScrapeError(IncorrectDomainError, "incorrectDomain");
 
-var GaijinPotScraper = function (url) {
+//Default scraping paths
+var defaultPaths = {
+  titlePath: null,
+  addressPath: null,
+  rentPath: null,
+  keyMoneyPath: null,
+  depositPath: null,
+  sizePath: null,
+  layoutPath: null,
+  yearBuiltPath: null,
+  maintenanceFeePath: null,
+  stationsPath: null
+};
 
-}
+var buildScraper = function (domain, defaults) {
+  var paths = _.extend(defaultPaths, defaults);
 
-var Scraper = function (url) {
-  var self = this;
-  this.deferred = q.defer();
-  this.promise = this.deferred.promise;
-  this.url = url;
-  this.$ = null;
+  var PageScrape = function (url, data, deferred) {
+    var $ = cheerio.load(data, {}),
+        finished = false;
+    deferred.promise.then(
+      function () { finished = true; },
+      function () { finished = true; }
+    );
 
-  request(url, function (error, response, body) {
-    var errorResponse = null;
-    if (error) {
-      errorResponse = new ConnectionError(error, url);
-      console.error(errorResponse);
-      q.reject(errorResponse);
-    } else if (response.statusCode !== 200) {
-      errorResponse = new ConnectionError(response.statusCode, url);
-      console.error(errorResponse);
-      q.reject(errorResponse);
-    } else {
-      self.$ = cheerio.load(body, {
-        normalizeWhiteSpace: true
+    var searchFor =  function (path) {
+      var data = null;
+      if (!finished) {
+        data = $(path).text();
+        if (data === []) {
+          data = null;
+        }
+        return maybe.Maybe(data);
+      }
+      return maybe.Empty
+    };
+
+    var extracts = {
+      extractTitle:  function () { return searchFor(paths.titlePath); },
+      extractRent: function () { return searchFor(paths.rentPath) },
+      extractKeyMoney: function () { return searchFor(paths.keyMoneyPath) },
+      extractDeposit: function () { return searchFor(paths.depositPath) },
+      extractSize: function () { return searchFor(paths.sizePath) },
+      extractLayout: function () { return searchFor(paths.layoutPath) },
+      extractDescription: function () { return searchFor(paths.descriptionPath) },
+      extractMaintenanceFee: function () { return searchFor(paths.maintenanceFeePath) },
+      extractYearBuilt: function () { return searchFor(paths.yearBuiltPath) },
+      extractStations: function () {
+        var stations = $(paths.stationPath);
+        return _.map(stations, function (station) {
+                 return station.text();
+               });
+      }
+    };
+
+    var reject = function (error) {
+      if (!finished) {
+        deferred.reject(error);
+      }
+    };
+
+    var resolve = function (data) {
+      if (!finished) {
+        deferred.resolve(data);
+      }
+    }
+
+    return {
+      doScrape: function() {
+        var self = this,
+            data = {};
+        var set = function (key) {
+          return function (value) { data[key] = value; }
+        };
+        var required = function(key) {
+          return function () { reject(new InsufficientInfoError(key, url)) };
+        };
+
+        extracts.extractTitle().mapOr(set('title'), required('title'));
+
+        extracts.extractRent()
+        .map(extractors.moneyMentions)
+        .filter(_.isArray)
+        .filter(fns.not(_.isEmpty))
+        .map(_.first)
+        .mapOr(set('rent'), required('rent'));
+
+        extracts.extractKeyMoney()
+        .map(function (v) { return new extractors.AmbiguousExtractor(v).applyTo(data.rent); })
+        .mapOr(set('keyMoney'), required('keyMoney'));
+
+        extracts.extractDeposit()
+        .map(function (v) { return new extractors.AmbiguousExtractor(v).applyTo(data.rent); })
+        .mapOr(set('deposit'), required('deposit'));
+
+        extracts.extractSize()
+        .map(extractors.size)
+        .map(_.first)
+        .mapOr(set('size'), required('deposit'));
+
+        extracts.extractLayout()
+        .map(function (v) { return v.trim(); })
+        .mapOr(set('layout'), required('layout'));
+
+        extracts.extractDescription().map(set('description'));
+        extracts.extractStations().map(set('stations'));
+
+        extracts.extractMaintenanceFee()
+        .map(extractors.moneyRate)
+        .filter(_.isNumber)
+        .mapOr(set('maintenance'), required('maintenanceFee'));
+
+        extracts.extractYearBuilt()
+        .map(parseInt)
+        .mapOr(set('yearBuilt'), required('yearBuilt'));
+
+        resolve(data);
+      }
+    };
+  };
+
+
+  return {
+    scrape: function (url) {
+      var self = this;
+      if (url.indexOf(domain) === -1) {
+        throw new IncorrectDomainError(domain);
+      }
+
+      var deferred = q.defer();
+
+      //And do request
+      request(url, function (error, response, body) {
+        var errorResponse = null;
+        if (error) {
+          errorResponse = new ConnectionError(error, url);
+          console.error(errorResponse);
+          deferred.reject(errorResponse);
+        } else if (response.statusCode !== 200) {
+          errorResponse = new ConnectionError(response.statusCode, url);
+          console.error(errorResponse);
+          deferred.reject(errorResponse);
+        } else {
+          PageScrape(url, body, deferred).doScrape();
+        }
       });
-      self.doScrape();
+      return deferred.promise;
     }
-  });
+  };
 }
 
-var buildScraper = function () {
-  
-}
+var GaijinPotScraper = buildScraper("apartments.gaijinpot.com/", {
+  titlePath: ".property_name",
+  //  addressPath: ".price",
+  rentPath: ".price",
+  keyMoneyPath: "#details_info > div:nth-child(2) > div.desc_section.right > span.value",
+  depositPath: "#details_info > div:nth-child(2) > div:nth-child(1) > span.value",
+  sizePath: "#details_info > div:nth-child(4) > div:nth-child(1) > span.value",
+  layoutPath: "#property_content_left > section:nth-child(2) > dl > div:nth-child(2) > dd",
+  descriptionPath: "#property_content_left > section:nth-child(4) > p",
+  maintenanceFeePath: "#property_content_left > section:nth-child(2) > dl > div:nth-child(4) > dd",
+  yearBuiltPath: "#property_content_left > section:nth-child(2) > dl > div:nth-child(1) > dd",
+  stationsPath: "#property_content_left > section > a"
+});
 
-GaijinPotScraper.prototype = _.extend(GaijinPotScraper.prototype, {
-
-  doScrape: function () {
-    var self = this,
-        scraped = {},
-        title = null,
-        address = null,
-        rent = null,
-        keyMoney = null,
-        deposit = null,
-        size = null,
-        layout = null,
-        description = null,
-        yearBuilt = null,
-        maintenanceFee = null,
-        stations = null;
-
-    //title
-    title = this.$(".property_name").text();
-    if (_.isEmpty(title)) {
-      this.deferred.reject("Could not parse name");
-      return;
-    }
-
-    //rent
-    rent = this.$(".price").text();
-    if (_.isEmpty(rent)) {
-      this.deferred.reject("Could not find rent");
-      return;
-    } else {
-      rent = extractors.moneyMentions(rent);
-      if (rent.length != 1) {
-        this.deferred.reject("Could not parse rent");
-        return;
-      } else {
-        rent = rent[0]
-      }
-    }
-
-    //Key money
-    keyMoney = this.$('#details_info > div:nth-child(2) > div.desc_section.right > span.value').text()
-    if (_.isEmpty(keyMoney)) {
-      this.deferred.reject("Could not parse key money");
-    } else {
-      var copy = _.clone(keyMoney);
-      console.info(copy);
-      keyMoney = new extractors.AmbiguousExtractor(keyMoney).applyTo(rent);
-      if (keyMoney === null) {
-        this.deferred.reject("Couldn't parse key money");
-        return;
-      }
-    }
-
-    //Deposit
-    deposit = this.$("#details_info > div:nth-child(2) > div:nth-child(1) > span.value").text()
-    if (_.isEmpty(deposit)) {
-      this.deferred.reject("Could not parse key money");
-    } else {
-      deposit = new extractors.AmbiguousExtractor(deposit).applyTo(rent);
-      if (deposit === null) {
-        this.deferred.reject("Couldn't parse key money");
-        return;
-      }
-    }
-
-    //size
-    size = this.$("#details_info > div:nth-child(4) > div:nth-child(1) > span.value").text();
-    if (size) {
-      size = extractors.size(size)[0];
-    }
-    if (!size) {
-      this.deferred.reject("Couldn't process size");
-      return;
-    }
-
-    //layout
-    layout = this.$("#property_content_left > section:nth-child(2) > dl > div:nth-child(2) > dd").text();
-    if (layout) {
-      layout = layout.trim();
-    }
-    if (!layout) {
-      this.deferred.reject("Unable to find layout");
-      return;
-    }
-
-    //description - optional
-    description = this.$("#property_content_left > section:nth-child(4) > p").text()
-
-    //stations
-    stations = [];
-    this.$("#property_content_left > section > a").each( function (index, elem) {
-      stations.push(self.$(elem).text());
-    });
-
-    //Maintenance fee
-    maintenanceFee = this.$("#property_content_left > section:nth-child(2) > dl > div:nth-child(4) > dd").text();
-    if (maintenanceFee) {
-      maintenanceFee = extractors.moneyRate(maintenanceFee);
-    }
-    if (!_.isNumber(maintenanceFee)) {
-      this.deferred.reject("Unable to parse maintenanceFee");
-    }
-
-    //Year built
-    yearBuilt = this.$("#property_content_left > section:nth-child(2) > dl > div:nth-child(1) > dd").text();
-    if (yearBuilt) {
-      try {
-        yearBuilt = parseInt(yearBuilt);
-      } catch (err) {
-        this.deferred.reject(err);
-      }
-    } else {
-      this.deferred.reject("Unable to parse yearBuilt");
-    }
-
-    this.deferred.resolve({
-      rent: rent,
-      title: title,
-      keyMoney: keyMoney,
-      deposit: deposit,
-      size: size,
-      layout: layout,
-      description: description,
-      maintenance: maintenanceFee,
-      yearBuilt: yearBuilt,
-      stations: stations
-    });
+GaijinPotScraper.scrape("http://apartments.gaijinpot.com/en/rent/view/14396").then(
+  function (data) {
+    console.info(data);
+  },
+  function (error) {
+    console.info(error);
   }
-
-});
-
-var urls = [];
-for (var i = 156079; i < 257079; i++) {
-  urls.push("http://apartments.gaijinpot.com/en/rent/view/" + i);
-}
-urls.forEach(function (url) {
-  new GaijinPotScraper(url).promise
-  .then(
-    function (data) {
-      if (data.size > 30 && data.rent < 10000) {
-        console.info(data);
-      }
-    },
-    function (error) {
-      if (error !== 404) {
-        console.error(url);
-      }
-      console.error(error);
-    });
-});
+)
