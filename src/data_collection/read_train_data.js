@@ -61,6 +61,6 @@ trainData.forEach(function (info) {
         lon: lon,
         lat: lat
       });
-    station.save();
+    station.add();
   }
 });

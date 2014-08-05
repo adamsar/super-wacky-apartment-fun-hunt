@@ -2,7 +2,8 @@
 
 var model = require('model'),
     validators = require('../data_util/model_validators'),
-    geolocation = require('../data_util/geolocation');
+    geolocation = require('../data_util/geolocation'),
+    storeInMongo = require('../data_util/mongo_model');
 
 var Station = function () {
   var self = this;
@@ -14,11 +15,7 @@ var Station = function () {
     lat: { type: 'number', required: true },
     lon: { type: 'number', required: true }
   });
-  this.setAdapter('sqlite');
-
-//  ['name', 'line', 'address'].forEach(function (property) {
-//    validators.validateJapaneseString(self, property);
-//  });
+//  this.setAdapter('mongo', {database: 'test', host: 'localhost'});
 }
 
 Station.prototype.toString = function () {
@@ -39,6 +36,26 @@ Station.prototype.distanceTo = function (otherStation) {
   return geolocation.distanceBetween(this.latLon(), otherStation.latLon());
 }
 
+Station.prototype.toJson = function () {
+  return {
+    name: this.name,
+    address: this.address,
+    line: this.line,
+    location: [this.lat, this.lon]
+  }
+}
+
 
 Station = model.register('Station', Station);
+
+storeInMongo(Station, 'stations', function (json) {
+  return Station.create({
+    name: json.name,
+    address: json.address,
+    line: json.line,
+    lat: json.location[0],
+    lon: json.location[1]
+  });
+}, 'name.kanji');
+
 module.exports = Station;
