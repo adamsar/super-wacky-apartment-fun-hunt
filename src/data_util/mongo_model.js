@@ -20,16 +20,23 @@ var setKey = function (key, object) {
     dict[first] = object[first];
     return dict;
   }
-  //Make dict with first chunk, descending down as necessary recursively.
 }
 
-var storeInMongo = function (obj, collectionName, unmarshalCb, key) {
+var storeInMongo = function (obj, collectionName, unmarshalCb, key, indexes) {
   var collection = $("apartments." + collectionName),
       constructor = function (document) {
         var object = unmarshalCb(document);
-        object._id = document._id;
+        if (object !== null) {
+          object._id = document._id;
+        }
         return object;
       }
+
+  //Set indexes
+  $("apartments.$cmd").find({
+    createdIndexes: collectionName,
+    indexes: indexes
+  }, 1);
 
   obj.prototype.add = function () {
     var json = this.toJson(),

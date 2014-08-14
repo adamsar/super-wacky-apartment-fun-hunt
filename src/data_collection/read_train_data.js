@@ -51,6 +51,7 @@ trainData.forEach(function (info) {
       address = new JapaneseName(info[8], null, null),
       lon = parseFloat(info[9]),
       lat = parseFloat(info[10]),
+      ekidataId = parseInt(info[0]),
       station = null;
 
   if (isTruthy(line)) {
@@ -59,7 +60,8 @@ trainData.forEach(function (info) {
         line: line.asObject(),
         address: address,
         lon: lon,
-        lat: lat
+        lat: lat,
+        ekidataId: ekidataId
       });
     station.add();
   }

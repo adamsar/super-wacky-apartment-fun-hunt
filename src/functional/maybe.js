@@ -41,7 +41,7 @@ var Full = function (data) {
 
     filter: function (fn) {
       var result = fn(data);
-      if (result !== null && result !== undefined) return this;
+      if (result === true) return this;
       else return Empty;
     },
 

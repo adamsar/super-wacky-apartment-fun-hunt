@@ -90,10 +90,10 @@ var buildScraper = function (domain, defaults) {
       extractMaintenanceFee: function () { return searchFor(paths.maintenanceFeePath) },
       extractYearBuilt: function () { return searchFor(paths.yearBuiltPath) },
       extractStations: function () {
-        var stations = $(paths.stationPath);
-        return _.map(stations, function (station) {
-                 return station.text();
-               });
+        var stations = $(paths.stationsPath);
+        return maybe.Maybe(_.map(stations, function (station) {
+                 return $(station).text();
+               }));
       }
     };
 
@@ -112,7 +112,7 @@ var buildScraper = function (domain, defaults) {
     return {
       doScrape: function() {
         var self = this,
-            data = {};
+            data = { url: url };
         var set = function (key) {
           return function (value) { data[key] = value; }
         };
@@ -140,7 +140,7 @@ var buildScraper = function (domain, defaults) {
         extracts.extractSize()
         .map(extractors.size)
         .map(_.first)
-        .mapOr(set('size'), required('deposit'));
+        .mapOr(set('size'), required('size'));
 
         extracts.extractLayout()
         .map(function (v) { return v.trim(); })
@@ -152,7 +152,7 @@ var buildScraper = function (domain, defaults) {
         extracts.extractMaintenanceFee()
         .map(extractors.moneyRate)
         .filter(_.isNumber)
-        .mapOr(set('maintenance'), required('maintenanceFee'));
+        .mapOr(set('maintenanceFee'), required('maintenanceFee'));
 
         extracts.extractYearBuilt()
         .map(parseInt)
@@ -207,11 +207,6 @@ var GaijinPotScraper = buildScraper("apartments.gaijinpot.com/", {
   stationsPath: "#property_content_left > section > a"
 });
 
-GaijinPotScraper.scrape("http://apartments.gaijinpot.com/en/rent/view/14396").then(
-  function (data) {
-    console.info(data);
-  },
-  function (error) {
-    console.info(error);
-  }
-)
+module.exports = {
+  GaijinPotScraper: GaijinPotScraper
+};

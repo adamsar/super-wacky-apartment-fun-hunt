@@ -13,7 +13,8 @@ var Station = function () {
     address: { type: 'object', required: true },
     line: { type: 'object', required: true },
     lat: { type: 'number', required: true },
-    lon: { type: 'number', required: true }
+    lon: { type: 'number', required: true },
+    ekidataId: { type: 'number', required: true }
   });
 //  this.setAdapter('mongo', {database: 'test', host: 'localhost'});
 }
@@ -41,21 +42,27 @@ Station.prototype.toJson = function () {
     name: this.name,
     address: this.address,
     line: this.line,
-    location: [this.lat, this.lon]
+    location: [this.lon, this.lat],
+    ekidataId: this.ekidataId
   }
 }
-
 
 Station = model.register('Station', Station);
 
 storeInMongo(Station, 'stations', function (json) {
-  return Station.create({
-    name: json.name,
-    address: json.address,
-    line: json.line,
-    lat: json.location[0],
-    lon: json.location[1]
-  });
-}, 'name.kanji');
+  if (!json.$err) {
+    return Station.create({
+      name: json.name,
+      address: json.address,
+      line: json.line,
+      lat: json.location[1],
+      lon: json.location[0],
+      ekidataId: json.ekidataId
+    });
+  } else {
+    console.error(json);
+    return null;
+  }
+}, 'name.kanji', { location: "2d", name: 1 });
 
 module.exports = Station;
